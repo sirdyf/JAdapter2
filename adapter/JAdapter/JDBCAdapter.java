@@ -18,11 +18,7 @@
 package JAdapter;
 
 import autopartner.Asrt;
-import autopartner.Tools;
-
-import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableModel;

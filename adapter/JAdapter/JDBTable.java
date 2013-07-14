@@ -13,10 +13,6 @@ public class JDBTable implements DBInterface {
 // позволяет получить соединение с базой(один connection на весь сеанс работы приложения)
     JAdapter.iConnManager conMan = null;
 
-//    public iConnManager getConMan() {
-//        return conMan;
-//    }
-//
     public void setConMan(ConnManager conMan) {
         this.conMan = conMan;
     }
@@ -137,25 +133,7 @@ public class JDBTable implements DBInterface {
     }
     
     // для нового соединения нужно передать новый,пустой JTableData
-    @Override
-    public void ConnectToExtern(JTableData jtd,String Url, String UserName, String Password) {
-        jData = jtd;
-        if (jData==null){
-            System.err.println("error: JDBTable().setParam(..) argument JTableData is NULL");
-            return ;
-        }
-        if (jtd.rows.isEmpty() == false){
-            System.err.println("error: JDBTable().setParam(..) argument JTableData is NOT empty");
-            return ;
-        }
-        Connection connection_ = conMan.CreateExternConnection(Url, UserName, Password);
-        if (connection_==null) {
-            System.err.println("JDBTable.Connect(..) connection is NULL");
-//            return false;
-        }
-        this.connection = connection_;
-    }
-    
+ 
     // ResultSetMetaData must have more one column!
     private void extractMetadata(final ResultSetMetaData metaData) throws SQLException {
         if (metaData == null) {
@@ -204,7 +182,125 @@ public class JDBTable implements DBInterface {
             jData.rows.addElement(newRow);
         }
     }
-//пересмотреть логику работы: ловить исключения на самом низу, сверху логировать. Обеспечивать устойчивость адаптера и всех ф-ций.Адаптер сигнализирует об ошибке и возвращает фиктивную таблицу
+    
+    public void setPrmKey(String prmKey) {
+        this.prmKey = prmKey;
+    }
+
+    protected String GetColumnAsDBtype(int column) {
+        Class colClass = this.getColClass(column);
+
+        if (colClass == java.lang.Boolean.class) {
+            return "BIT";
+        }
+        if (colClass == java.lang.Byte.class) {
+            return "TINYINT";
+        }
+        if (colClass == java.lang.Short.class) {
+            return "SMALLINT";
+        }
+        if (colClass == java.lang.Integer.class) {
+            return "INTEGER";
+        }
+        if (colClass == java.lang.Long.class) {
+            return "BIGINT";
+        }
+        if (colClass == java.lang.Float.class) {
+            return "FLOAT";//REAL
+        }
+        if (colClass == java.lang.Double.class) {
+            return "DOUBLE";
+        }
+        if (colClass == java.lang.Number.class) {
+            return "NUMERIC";
+        }
+        if (colClass == java.math.BigDecimal.class) {
+            return "DECIMAL";
+        }
+        if (colClass == java.lang.String.class) {
+            return "CHAR(100)";//VARCHAR LONGVARCHAR
+        }
+        if (colClass == java.sql.Date.class) {
+            return "DATE";
+        }
+        if (colClass == java.sql.Time.class) {
+            return "TIME";
+        }
+        if (colClass == java.util.Date.class) {
+            return "TIMESTAMP";
+        }
+        return "CHAR";
+    }
+
+    protected String GetRowAsStringDBtype(int row) {
+        String strRow = "";
+        Object tmpObj = null;
+        for (int i = 0; i < this.jData.columnNames.length; i++) {
+            tmpObj = this.getValueAt(row, i);
+            strRow += this.ConvertValues(tmpObj) + ",";
+        }
+        int l = strRow.length();
+        String sqlTxt = strRow.substring(0, l - 1);
+        return sqlTxt;
+    }
+
+    protected Vector<Object> CreateEmptyRow() {
+        Vector<Object> tmpObj = new Vector();
+        for (int i = 0; i < this.jData.vColObject.size(); i++) {
+            tmpObj.addElement(null);//vColObject.get(i));
+        }
+        return tmpObj;
+    }
+
+    public Object getValueAt(int aRow, int aColumn) {
+        if ((aColumn < 0) || (aColumn > jData.columnNames.length)) {
+            return "getValueAt num column error";
+        }
+        if ((aRow < 0) || (aRow > jData.rows.size())) {
+            return "getValueAt num column error";
+        }
+
+        Vector row = (Vector) jData.rows.elementAt(aRow);
+        Object t = null;//new Object();
+        t = row.elementAt(aColumn);
+
+        return t;
+    }
+
+    protected String ConvertValues(Object o) {
+        if (o == null) {
+            return "NULL";
+        }
+        Class cls = o.getClass();
+        if ((cls == java.lang.String.class)
+                || (cls == java.sql.Date.class)
+                || (cls == java.sql.Time.class)
+                || (cls == java.util.Date.class)) {
+            return "'" + o.toString() + "'";
+        }
+        return o.toString();
+    }
+    //пересмотреть логику работы: ловить исключения на самом низу, сверху логировать. Обеспечивать устойчивость адаптера и всех ф-ций.Адаптер сигнализирует об ошибке и возвращает фиктивную таблицу
+     @Override
+    public void ConnectToExtern(JTableData jtd,String Url, String UserName, String Password) {
+        jData = jtd;
+        if (jData==null){
+            System.err.println("error: JDBTable().setParam(..) argument JTableData is NULL");
+            return ;
+        }
+        if (jtd.rows.isEmpty() == false){
+            System.err.println("error: JDBTable().setParam(..) argument JTableData is NOT empty");
+            return ;
+        }
+        Connection connection_ = conMan.CreateExternConnection(Url, UserName, Password);
+        if (connection_==null) {
+            System.err.println("JDBTable.Connect(..) connection is NULL");
+//            return false;
+        }
+        this.connection = connection_;
+    }
+      
+    
     @Override
     public void fillData(boolean newTable) {
         if (connection == null) {//|| statement == null){
@@ -637,134 +733,5 @@ public class JDBTable implements DBInterface {
         return prmKey;
     }
 
-    public void setPrmKey(String prmKey) {
-        this.prmKey = prmKey;
-    }
 
-    protected String GetColumnAsDBtype(int column) {
-        Class colClass = this.getColClass(column);
-
-        if (colClass == java.lang.Boolean.class) {
-            return "BIT";
-        }
-        if (colClass == java.lang.Byte.class) {
-            return "TINYINT";
-        }
-        if (colClass == java.lang.Short.class) {
-            return "SMALLINT";
-        }
-        if (colClass == java.lang.Integer.class) {
-            return "INTEGER";
-        }
-        if (colClass == java.lang.Long.class) {
-            return "BIGINT";
-        }
-        if (colClass == java.lang.Float.class) {
-            return "FLOAT";//REAL
-        }
-        if (colClass == java.lang.Double.class) {
-            return "DOUBLE";
-        }
-        if (colClass == java.lang.Number.class) {
-            return "NUMERIC";
-        }
-        if (colClass == java.math.BigDecimal.class) {
-            return "DECIMAL";
-        }
-        if (colClass == java.lang.String.class) {
-            return "CHAR(100)";//VARCHAR LONGVARCHAR
-        }
-        if (colClass == java.sql.Date.class) {
-            return "DATE";
-        }
-        if (colClass == java.sql.Time.class) {
-            return "TIME";
-        }
-        if (colClass == java.util.Date.class) {
-            return "TIMESTAMP";
-        }
-        return "CHAR";
-//            case Types.BINARY:
-//            case Types.VARBINARY:
-//            case Types.LONGVARBINARY: {
-//                cname = "byte[]";
-//                break;
-//            }
-//            case Types.OTHER:
-//            case Types.JAVA_OBJECT: {
-//                cname = "java.lang.Object";
-//                break;
-//            }
-//            case Types.CLOB: {
-//                cname = "java.sql.Clob";
-//                break;
-//            }
-//            case Types.BLOB: {
-//                cname = "java.ssql.Blob";
-//                break;
-//            }
-//            case Types.REF: {
-//                cname = "java.sql.Ref";
-//                break;
-//            }
-//            case Types.STRUCT: {
-//                cname = "java.sql.Struct";
-//                break;
-//            }
-//            default: {
-//                cname = "java.lang.String";
-//                break;
-//                //return super.getColumnClass(column);
-//            }
-//        }
-    }
-
-    protected String GetRowAsStringDBtype(int row) {
-        String strRow = "";
-        Object tmpObj = null;
-        for (int i = 0; i < this.jData.columnNames.length; i++) {
-            tmpObj = this.getValueAt(row, i);
-            strRow += this.ConvertValues(tmpObj) + ",";
-        }
-        int l = strRow.length();
-        String sqlTxt = strRow.substring(0, l - 1);
-        return sqlTxt;
-    }
-
-    protected Vector<Object> CreateEmptyRow() {
-        Vector<Object> tmpObj = new Vector();
-        for (int i = 0; i < this.jData.vColObject.size(); i++) {
-            tmpObj.addElement(null);//vColObject.get(i));
-        }
-        return tmpObj;
-    }
-
-    public Object getValueAt(int aRow, int aColumn) {
-        if ((aColumn < 0) || (aColumn > jData.columnNames.length)) {
-            return "getValueAt num column error";
-        }
-        if ((aRow < 0) || (aRow > jData.rows.size())) {
-            return "getValueAt num column error";
-        }
-
-        Vector row = (Vector) jData.rows.elementAt(aRow);
-        Object t = null;//new Object();
-        t = row.elementAt(aColumn);
-
-        return t;
-    }
-
-    protected String ConvertValues(Object o) {
-        if (o == null) {
-            return "NULL";
-        }
-        Class cls = o.getClass();
-        if ((cls == java.lang.String.class)
-                || (cls == java.sql.Date.class)
-                || (cls == java.sql.Time.class)
-                || (cls == java.util.Date.class)) {
-            return "'" + o.toString() + "'";
-        }
-        return o.toString();
-    }
 }
